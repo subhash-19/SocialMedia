@@ -11,7 +11,9 @@ import java.util.List;
 @Repository
 public interface UserRepository extends JpaRepository<User, Integer> {
 
-    User findByEmail(String email);
+    User findByEmail(String identifier);
+
+    User findByUserName(String identifier);
 
     @Query("select u from User u where u.firstName LIKE %:query% OR u.lastName LIKE %:query% OR u.email LIKE %:query%")
     List<User> searchUser(@Param("query") String query);

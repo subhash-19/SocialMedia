@@ -23,6 +23,7 @@ import java.util.List;
 public class PostServiceImpl implements PostService {
 
     private static final String POST_NOT_FOUND = "Post not found with id : ";
+    private static final String USER_NOT_FOUND = "User not found with id : ";
 
     private final PostRepository postRepository;
     private final UserRepository userRepository;
@@ -30,7 +31,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public PostDTO createPost(Post post, Integer userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + userId));
 
         post.setUser(user);
         post.setCreatedAt(LocalDateTime.now());
@@ -97,44 +98,46 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public void deletePost(Integer postId, Integer userId) {
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
-
-        if (post.isDeleted()) {
-            throw new ResourceNotFoundException("Post was already deleted");
-        }
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found with ID: " + postId));
 
         if (!post.getUser().getId().equals(userId)) {
             throw new UnauthorizedActionException("You are not allowed to delete this post");
         }
 
-        post.setDeleted(true);
-        post.setStatus(PostStatus.DELETED);
-        postRepository.save(post);
+        postRepository.delete(post);
     }
 
     @Override
+    @Transactional
     public PostDTO toggleLikePost(Integer postId, Integer userId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
 
-        if (post.getLikedBy().contains(userId)) {
-            post.getLikedBy().remove(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + userId));
+
+        if (post.getLikedBy().contains(user)) {
+            post.getLikedBy().remove(user);
         } else {
-            post.getLikedBy().add(userId);
+            post.getLikedBy().add(user);
         }
 
         return new PostDTO(postRepository.save(post));
     }
 
     @Override
+    @Transactional
     public PostDTO savePost(Integer postId, Integer userId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
 
-        if (post.getSavedBy().contains(userId)) {
-            post.getSavedBy().remove(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + userId));
+
+        if (post.getSavedBy().contains(user)) {
+            post.getSavedBy().remove(user);
         } else {
-            post.getSavedBy().add(userId);
+            post.getSavedBy().add(user);
         }
 
         return new PostDTO(postRepository.save(post));
@@ -168,8 +171,11 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public List<PostDTO> getSavedPosts(Integer userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + userId));
+
         return postRepository.findAll().stream()
-                .filter(post -> post.getSavedBy().contains(userId))
+                .filter(post -> post.getSavedBy().contains(user))
                 .map(PostDTO::new)
                 .toList();
     }

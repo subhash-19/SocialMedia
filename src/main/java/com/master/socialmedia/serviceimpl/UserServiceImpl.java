@@ -37,7 +37,7 @@ public class UserServiceImpl implements UserService {
             User newUser = new User();
             newUser.setFirstName(user.getFirstName());
             newUser.setLastName(user.getLastName());
-            newUser.setUsername(user.getUsername());
+            newUser.setUserName(user.getUserName());
             newUser.setGender(user.getGender());
             newUser.setEmail(user.getEmail());
             newUser.setPassword(user.getPassword());
@@ -52,7 +52,7 @@ public class UserServiceImpl implements UserService {
             }
 
             if (errorMsg.contains("username")) {
-                throw new UsernameAlreadyExistsException("Username already exists: " + user.getUsername());
+                throw new UsernameAlreadyExistsException("Username already exists: " + user.getUserName());
             } else if (errorMsg.contains("email")) {
                 throw new EmailAlreadyExistsException(EMAIL_ALREADY_EXISTS_MSG + user.getEmail());
             }

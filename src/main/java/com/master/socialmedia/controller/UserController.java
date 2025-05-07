@@ -28,11 +28,6 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
-    @PostMapping
-    public ResponseEntity<UserDTO> registerUser(@RequestBody User user) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(userService.registerUser(user));
-    }
-
     @GetMapping("/{userId}")
     public ResponseEntity<UserDTO> getUserById(@PathVariable Integer userId) {
         return ResponseEntity.ok(userService.findUserById(userId));

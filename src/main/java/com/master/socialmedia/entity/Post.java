@@ -7,10 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Entity
 @Data
@@ -24,7 +21,6 @@ public class Post {
     private Integer id;
 
     private String caption;
-
     private String imageUrl;
     private String videoUrl;
 
@@ -39,11 +35,21 @@ public class Post {
     @ManyToOne
     private User user;
 
-    @ElementCollection
-    private Set<Integer> likedBy = new HashSet<>();
+    @ManyToMany
+    @JoinTable(
+            name = "post_likes",
+            joinColumns = @JoinColumn(name = "post_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private Set<User> likedBy = new HashSet<>();
 
-    @ElementCollection
-    private Set<Integer> savedBy = new HashSet<>();
+    @ManyToMany
+    @JoinTable(
+            name = "post_saves",
+            joinColumns = @JoinColumn(name = "post_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private Set<User> savedBy = new HashSet<>();
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL)
     private List<Comment> comments = new ArrayList<>();

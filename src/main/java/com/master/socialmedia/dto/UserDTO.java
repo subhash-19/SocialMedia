@@ -23,7 +23,7 @@ public class UserDTO {
         this.id = user.getId();
         this.firstName = user.getFirstName();
         this.lastName = user.getLastName();
-        this.username = user.getUsername();
+        this.username = user.getUserName();
         this.email = user.getEmail();
         this.gender = user.getGender();
         this.followerCount = user.getFollowers() != null ? user.getFollowers().size() : 0;
