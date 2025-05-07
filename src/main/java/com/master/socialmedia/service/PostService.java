@@ -1,5 +1,6 @@
 package com.master.socialmedia.service;
 
+import com.master.socialmedia.dto.PostDTO;
 import com.master.socialmedia.entity.Post;
 import com.master.socialmedia.entity.User;
 import com.master.socialmedia.enums.PostStatus;
@@ -8,39 +9,36 @@ import java.util.List;
 
 public interface PostService {
 
-    Post createPost(Post post, Integer userId);
+    PostDTO createPost(Post post, Integer userId);
 
-    Post getPostById(Integer postId);
+    PostDTO getPostById(Integer postId);
 
-    List<Post> getAllPublicPosts();
+    List<PostDTO> getAllPublicPosts();
 
-    List<Post> getPostsByUser(Integer userId);
+    List<PostDTO> getPostsByUser(Integer userId);
 
-    Post updatePost(Integer postId, Post updatedPost, Integer userId);
+    PostDTO updatePost(Integer postId, Post updatedPost, Integer userId);
 
     void deletePost(Integer postId, Integer userId); // soft delete
 
-    Post likePost(Integer postId, Integer userId);
+    PostDTO toggleLikePost(Integer postId, Integer userId);
 
-    Post unlikePost(Integer postId, Integer userId);
+    PostDTO savePost(Integer postId, Integer userId);
 
-    Post savePost(Integer postId, Integer userId);
-
-    Post unsavePost(Integer postId, Integer userId);
-
-    Post addComment(Integer postId, Integer userId, String commentText);
+    PostDTO addComment(Integer postId, Integer userId, String commentText);
 
     List<String> getCommentTexts(Integer postId); // for simple display
 
-    List<Post> getSavedPosts(Integer userId);
+    List<PostDTO> getSavedPosts(Integer userId);
 
     int getLikeCount(Integer postId);
 
     int getCommentCount(Integer postId);
 
-    List<Post> getPostsForUser(User viewer, Integer ownerId);
+    List<PostDTO> getPostsForUser(User viewer, Integer ownerId);
 
-    List<Post> searchPosts(String keyword);
+    List<PostDTO> searchPosts(String keyword);
 
-    Post changePostStatus(Integer postId, Integer userId, PostStatus newStatus);
+    PostDTO changePostStatus(Integer postId, Integer userId, PostStatus newStatus);
 }
+

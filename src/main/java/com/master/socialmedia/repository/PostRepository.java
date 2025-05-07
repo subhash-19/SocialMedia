@@ -10,12 +10,12 @@ public interface PostRepository extends JpaRepository<Post, Integer> {
 
     List<Post> findByStatus(PostStatus status);
 
-    List<Post> findByUserId(Integer userId);
+    List<Post> findByUser_Id(Integer userId);
 
     List<Post> findByCaptionContainingIgnoreCase(String keyword);
 
-    List<Post> findByUserIdAndStatusNot(Integer userId, PostStatus status);
+    List<Post> findByUser_IdAndStatusNot(Integer userId, PostStatus status);
 
-    List<Post> findByUserIdAndStatusIn(Integer userId, List<PostStatus> statuses);
-
+    List<Post> findByUser_IdAndStatusIn(Integer userId, List<PostStatus> statuses);
 }
+

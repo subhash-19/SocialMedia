@@ -1,5 +1,6 @@
 package com.master.socialmedia.controller;
 
+import com.master.socialmedia.dto.PostDTO;
 import com.master.socialmedia.entity.Post;
 import com.master.socialmedia.entity.User;
 import com.master.socialmedia.enums.PostStatus;
@@ -18,29 +19,30 @@ public class PostController {
     private final PostService postService;
 
     @PostMapping("/create")
-    public ResponseEntity<Post> createPost(@RequestBody Post post, @RequestParam Integer userId) {
+    public ResponseEntity<PostDTO> createPost(@RequestBody Post post, @RequestParam Integer userId) {
         return ResponseEntity.ok(postService.createPost(post, userId));
     }
 
     @GetMapping("/{postId}")
-    public ResponseEntity<Post> getPostById(@PathVariable Integer postId) {
+    public ResponseEntity<PostDTO> getPostById(@PathVariable Integer postId) {
         return ResponseEntity.ok(postService.getPostById(postId));
     }
 
     @GetMapping("/public")
-    public ResponseEntity<List<Post>> getAllPublicPosts() {
-        return ResponseEntity.ok(postService.getAllPublicPosts());
+    public ResponseEntity<List<PostDTO>> getAllPublicPosts() {
+        List<PostDTO> posts = postService.getAllPublicPosts();
+        return ResponseEntity.ok(posts);
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Post>> getPostsByUser(@PathVariable Integer userId) {
+    public ResponseEntity<List<PostDTO>> getPostsByUser(@PathVariable Integer userId) {
         return ResponseEntity.ok(postService.getPostsByUser(userId));
     }
 
     @PutMapping("/update/{postId}")
-    public ResponseEntity<Post> updatePost(@PathVariable Integer postId,
-                                           @RequestBody Post updatedPost,
-                                           @RequestParam Integer userId) {
+    public ResponseEntity<PostDTO> updatePost(@PathVariable Integer postId,
+                                              @RequestBody Post updatedPost,
+                                              @RequestParam Integer userId) {
         return ResponseEntity.ok(postService.updatePost(postId, updatedPost, userId));
     }
 
@@ -50,30 +52,20 @@ public class PostController {
         return ResponseEntity.ok().build();
     }
 
-    @PutMapping("/like/{postId}")
-    public ResponseEntity<Post> likePost(@PathVariable Integer postId, @RequestParam Integer userId) {
-        return ResponseEntity.ok(postService.likePost(postId, userId));
+    @PutMapping("/toggle-like/{postId}")
+    public ResponseEntity<PostDTO> toggleLikePost(@PathVariable Integer postId, @RequestParam Integer userId) {
+        return ResponseEntity.ok(postService.toggleLikePost(postId, userId));
     }
 
-    @PutMapping("/unlike/{postId}")
-    public ResponseEntity<Post> unlikePost(@PathVariable Integer postId, @RequestParam Integer userId) {
-        return ResponseEntity.ok(postService.unlikePost(postId, userId));
-    }
-
-    @PutMapping("/save/{postId}")
-    public ResponseEntity<Post> savePost(@PathVariable Integer postId, @RequestParam Integer userId) {
+    @PutMapping("/save-toggle/{postId}")
+    public ResponseEntity<PostDTO> toggleSavePost(@PathVariable Integer postId, @RequestParam Integer userId) {
         return ResponseEntity.ok(postService.savePost(postId, userId));
     }
 
-    @PutMapping("/unsave/{postId}")
-    public ResponseEntity<Post> unsavePost(@PathVariable Integer postId, @RequestParam Integer userId) {
-        return ResponseEntity.ok(postService.unsavePost(postId, userId));
-    }
-
     @PostMapping("/comment/{postId}")
-    public ResponseEntity<Post> addComment(@PathVariable Integer postId,
-                                           @RequestParam Integer userId,
-                                           @RequestParam String comment) {
+    public ResponseEntity<PostDTO> addComment(@PathVariable Integer postId,
+                                              @RequestParam Integer userId,
+                                              @RequestParam String comment) {
         return ResponseEntity.ok(postService.addComment(postId, userId, comment));
     }
 
@@ -83,7 +75,7 @@ public class PostController {
     }
 
     @GetMapping("/saved/{userId}")
-    public ResponseEntity<List<Post>> getSavedPosts(@PathVariable Integer userId) {
+    public ResponseEntity<List<PostDTO>> getSavedPosts(@PathVariable Integer userId) {
         return ResponseEntity.ok(postService.getSavedPosts(userId));
     }
 
@@ -98,20 +90,20 @@ public class PostController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<Post>> searchPosts(@RequestParam String keyword) {
+    public ResponseEntity<List<PostDTO>> searchPosts(@RequestParam String keyword) {
         return ResponseEntity.ok(postService.searchPosts(keyword));
     }
 
     @PutMapping("/status/{postId}")
-    public ResponseEntity<Post> changePostStatus(@PathVariable Integer postId,
-                                                 @RequestParam Integer userId,
-                                                 @RequestParam PostStatus status) {
+    public ResponseEntity<PostDTO> changePostStatus(@PathVariable Integer postId,
+                                                    @RequestParam Integer userId,
+                                                    @RequestParam PostStatus status) {
         return ResponseEntity.ok(postService.changePostStatus(postId, userId, status));
     }
 
     @GetMapping("/viewable/{ownerId}")
-    public ResponseEntity<List<Post>> getViewablePosts(@PathVariable Integer ownerId,
-                                                       @RequestParam Integer viewerId) {
+    public ResponseEntity<List<PostDTO>> getViewablePosts(@PathVariable Integer ownerId,
+                                                          @RequestParam Integer viewerId) {
         User viewer = new User();
         viewer.setId(viewerId);
         return ResponseEntity.ok(postService.getPostsForUser(viewer, ownerId));

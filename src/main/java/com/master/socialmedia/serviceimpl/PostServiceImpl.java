@@ -1,5 +1,6 @@
 package com.master.socialmedia.serviceimpl;
 
+import com.master.socialmedia.dto.PostDTO;
 import com.master.socialmedia.entity.Comment;
 import com.master.socialmedia.entity.Post;
 import com.master.socialmedia.entity.User;
@@ -17,59 +18,90 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
+
+    private static final String POST_NOT_FOUND = "Post not found with id : ";
 
     private final PostRepository postRepository;
     private final UserRepository userRepository;
 
     @Override
-    public Post createPost(Post post, Integer userId) {
+    public PostDTO createPost(Post post, Integer userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         post.setUser(user);
         post.setCreatedAt(LocalDateTime.now());
         post.setStatus(PostStatus.PUBLIC);
-        return postRepository.save(post);
+
+        Post savedPost = postRepository.save(post);
+        return new PostDTO(savedPost);
     }
 
     @Override
-    public Post getPostById(Integer postId) {
-        return postRepository.findById(postId)
-                .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+    public PostDTO getPostById(Integer postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
+        return new PostDTO(post);
     }
 
     @Override
-    public List<Post> getAllPublicPosts() {
-        return postRepository.findByStatus(PostStatus.PUBLIC);
+    public List<PostDTO> getAllPublicPosts() {
+        return postRepository.findByStatus(PostStatus.PUBLIC)
+                .stream().map(PostDTO::new).toList();
     }
 
     @Override
-    public List<Post> getPostsByUser(Integer userId) {
-        return postRepository.findByUserId(userId);
+    public List<PostDTO> getPostsByUser(Integer userId) {
+        return postRepository.findByUser_Id(userId)
+                .stream().map(PostDTO::new).toList();
     }
 
     @Override
-    public Post updatePost(Integer postId, Post updatedPost, Integer userId) {
-        Post post = getPostById(postId);
+    public PostDTO updatePost(Integer postId, Post updatedPost, Integer userId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
 
         if (!post.getUser().getId().equals(userId)) {
             throw new UnauthorizedActionException("You are not allowed to update this post");
         }
 
-        post.setCaption(updatedPost.getCaption());
-        post.setImageUrl(updatedPost.getImageUrl());
-        post.setVideoUrl(updatedPost.getVideoUrl());
+        if (updatedPost.getCaption() != null) {
+            post.setCaption(updatedPost.getCaption());
+        }
+
+        if (updatedPost.getImageUrl() != null) {
+            post.setImageUrl(updatedPost.getImageUrl());
+        }
+
+        if (updatedPost.getVideoUrl() != null) {
+            post.setVideoUrl(updatedPost.getVideoUrl());
+        }
+
+        if (updatedPost.getStatus() != null) {
+            post.setStatus(updatedPost.getStatus());
+        }
+
+        if (updatedPost.getLocation() != null) {
+            post.setLocation(updatedPost.getLocation());
+        }
+
         post.setUpdatedAt(LocalDateTime.now());
 
-        return postRepository.save(post);
+        return new PostDTO(postRepository.save(post));
     }
 
     @Override
     @Transactional
     public void deletePost(Integer postId, Integer userId) {
-        Post post = getPostById(postId);
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
+
+        if (post.isDeleted()) {
+            throw new ResourceNotFoundException("Post was already deleted");
+        }
 
         if (!post.getUser().getId().equals(userId)) {
             throw new UnauthorizedActionException("You are not allowed to delete this post");
@@ -81,42 +113,37 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public Post likePost(Integer postId, Integer userId) {
-        Post post = getPostById(postId);
+    public PostDTO toggleLikePost(Integer postId, Integer userId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
+
         if (post.getLikedBy().contains(userId)) {
-            throw new IllegalStateException("Already liked this post");
+            post.getLikedBy().remove(userId);
+        } else {
+            post.getLikedBy().add(userId);
         }
-        post.getLikedBy().add(userId);
-        return postRepository.save(post);
+
+        return new PostDTO(postRepository.save(post));
     }
 
     @Override
-    public Post unlikePost(Integer postId, Integer userId) {
-        Post post = getPostById(postId);
-        if (!post.getLikedBy().contains(userId)) {
-            throw new IllegalStateException("You haven't liked this post yet");
+    public PostDTO savePost(Integer postId, Integer userId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
+
+        if (post.getSavedBy().contains(userId)) {
+            post.getSavedBy().remove(userId);
+        } else {
+            post.getSavedBy().add(userId);
         }
-        post.getLikedBy().remove(userId);
-        return postRepository.save(post);
+
+        return new PostDTO(postRepository.save(post));
     }
 
     @Override
-    public Post savePost(Integer postId, Integer userId) {
-        Post post = getPostById(postId);
-        post.getSavedBy().add(userId);
-        return postRepository.save(post);
-    }
-
-    @Override
-    public Post unsavePost(Integer postId, Integer userId) {
-        Post post = getPostById(postId);
-        post.getSavedBy().remove(userId);
-        return postRepository.save(post);
-    }
-
-    @Override
-    public Post addComment(Integer postId, Integer userId, String commentText) {
-        Post post = getPostById(postId);
+    public PostDTO addComment(Integer postId, Integer userId, String commentText) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -126,62 +153,72 @@ public class PostServiceImpl implements PostService {
         comment.setPost(post);
         comment.setUser(user);
 
-        post.getComments().add(comment); // cascade saves the comment
-        return postRepository.save(post);
+        post.getComments().add(comment);
+        return new PostDTO(postRepository.save(post));
     }
 
     @Override
     public List<String> getCommentTexts(Integer postId) {
-        Post post = getPostById(postId);
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
         return post.getComments().stream()
                 .map(Comment::getText)
                 .toList();
     }
 
     @Override
-    public List<Post> getSavedPosts(Integer userId) {
+    public List<PostDTO> getSavedPosts(Integer userId) {
         return postRepository.findAll().stream()
                 .filter(post -> post.getSavedBy().contains(userId))
+                .map(PostDTO::new)
                 .toList();
     }
 
     @Override
     public int getLikeCount(Integer postId) {
-        return getPostById(postId).getLikedBy().size();
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
+        return post.getLikedBy().size();
     }
 
     @Override
     public int getCommentCount(Integer postId) {
-        return getPostById(postId).getComments().size();
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
+        return post.getComments().size();
     }
 
     @Override
-    public List<Post> searchPosts(String keyword) {
-        return postRepository.findByCaptionContainingIgnoreCase(keyword);
+    public List<PostDTO> searchPosts(String keyword) {
+        return postRepository.findByCaptionContainingIgnoreCase(keyword)
+                .stream().map(PostDTO::new).toList();
     }
 
     @Override
-    public Post changePostStatus(Integer postId, Integer userId, PostStatus newStatus) {
-        Post post = getPostById(postId);
+    public PostDTO changePostStatus(Integer postId, Integer userId, PostStatus newStatus) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
         if (!post.getUser().getId().equals(userId)) {
             throw new UnauthorizedActionException("Only owner can change post status");
         }
         post.setStatus(newStatus);
-        return postRepository.save(post);
+        return new PostDTO(postRepository.save(post));
     }
 
     @Override
-    public List<Post> getPostsForUser(User viewer, Integer ownerId) {
+    public List<PostDTO> getPostsForUser(User viewer, Integer ownerId) {
         if (viewer == null) {
             throw new UnauthorizedActionException("Viewer information is required.");
         }
 
+        List<Post> posts;
         if (viewer.getId().equals(ownerId)) {
-            return postRepository.findByUserIdAndStatusNot(ownerId, PostStatus.DELETED);
+            posts = postRepository.findByUser_IdAndStatusNot(ownerId, PostStatus.DELETED);
         } else {
-            return postRepository.findByUserIdAndStatusIn(
+            posts = postRepository.findByUser_IdAndStatusIn(
                     ownerId, List.of(PostStatus.PUBLIC, PostStatus.FRIENDS_ONLY)
             );
         }
+        return posts.stream().map(PostDTO::new).toList();
     }
 }

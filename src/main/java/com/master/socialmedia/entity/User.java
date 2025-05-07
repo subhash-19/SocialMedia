@@ -39,10 +39,10 @@ public class User {
     @Column(name = "gender")
     private Gender gender;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     private Set<Integer> followers = new HashSet<>();
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     private Set<Integer> followings = new HashSet<>();
 }
 

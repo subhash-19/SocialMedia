@@ -37,7 +37,26 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
-        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Invalid User ID", "User ID must be a number");
+        String paramName = ex.getName(); // e.g., "postId", "userId", etc.
+        String message;
+        String error;
+
+        switch (paramName) {
+            case "postId" -> {
+                error = "Invalid Post ID";
+                message = "Post ID must be a number";
+            }
+            case "userId" -> {
+                error = "Invalid User ID";
+                message = "User ID must be a number";
+            }
+            default -> {
+                error = "Invalid Parameter";
+                message = paramName + " must be a valid number";
+            }
+        }
+
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, error, message);
     }
 
     @ExceptionHandler(InvalidPostDataException.class)
