@@ -1,6 +1,6 @@
 package com.master.socialmedia.controller;
 
-import com.master.socialmedia.dto.UserDTO;
+import com.master.socialmedia.entity.SignInRequest;
 import com.master.socialmedia.entity.User;
 import com.master.socialmedia.service.UserService;
 import jakarta.validation.Valid;
@@ -23,18 +23,15 @@ public class PublicController {
         return "OK";
     }
 
-    @PostMapping
-    public ResponseEntity<UserDTO> registerUser(@Valid @RequestBody User user) {
+    @PostMapping("/signup")
+    public ResponseEntity<String> registerUser(@Valid @RequestBody User user) {
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.registerUser(user));
     }
 
+    @PostMapping("/login")
+    public ResponseEntity<String> signIn(@RequestBody SignInRequest request) {
 
-    // Optional: add signin/login handler if authentication is handled here
-    /*
-    @PostMapping("/signin")
-    public ResponseEntity<?> signin(@RequestBody LoginRequest loginRequest) {
-        // Implement login logic (e.g., JWT auth)
-        return ResponseEntity.ok(authService.login(loginRequest));
+        String token = userService.signIn(request.getUserName(), request.getPassword());
+        return ResponseEntity.ok(token);
     }
-    */
 }

@@ -5,24 +5,36 @@ import com.master.socialmedia.entity.User;
 import com.master.socialmedia.exception.*;
 import com.master.socialmedia.repository.UserRepository;
 import com.master.socialmedia.service.UserService;
+import com.master.socialmedia.utils.JwtUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private static final String USER_NOT_FOUND_ID_MSG = "User not found with id: ";
     private static final String EMAIL_ALREADY_EXISTS_MSG = "Email already exists: ";
 
+    private final JwtUtil jwtUtil;
+
     private final UserRepository userRepository;
+
+    private final PasswordEncoder passwordEncoder;
+
+    private final AuthenticationManager authenticationManager;
+
+    private final UserDetailsServiceImpl userDetailsService;
 
     @Override
     public List<UserDTO> getAllUsers() {
@@ -32,35 +44,60 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserDTO registerUser(User user) {
-        try {
-            User newUser = new User();
-            newUser.setFirstName(user.getFirstName());
-            newUser.setLastName(user.getLastName());
-            newUser.setUserName(user.getUserName());
-            newUser.setGender(user.getGender());
-            newUser.setEmail(user.getEmail());
-            newUser.setPassword(user.getPassword());
-
-            return new UserDTO(userRepository.save(newUser));
-        } catch (DataIntegrityViolationException e) {
-            String errorMsg = "";
-            Throwable rootCause = e.getRootCause();
-
-            if (rootCause != null && rootCause.getMessage() != null) {
-                errorMsg = rootCause.getMessage().toLowerCase();
-            }
-
-            if (errorMsg.contains("username")) {
-                throw new UsernameAlreadyExistsException("Username already exists: " + user.getUserName());
-            } else if (errorMsg.contains("email")) {
-                throw new EmailAlreadyExistsException(EMAIL_ALREADY_EXISTS_MSG + user.getEmail());
-            }
-
-            throw new UserRegistrationException("Invalid user data.");
-        } catch (Exception e) {
-            throw new UserRegistrationException("User registration failed: " + e.getMessage());
+    public UserDTO findUserByUserName(String username) {
+        User user = userRepository.findByUserName(username);
+        if (user == null) {
+            throw new UsernameNotFoundException("User not found with username: " + username);
         }
+        return new UserDTO(user);
+    }
+
+    @Override
+    public String registerUser(User user) {
+
+        if (userRepository.existsByUserName(user.getUserName())) {
+            throw new UsernameAlreadyExistsException("Username already exists: " + user.getUserName());
+        }
+
+        if (userRepository.existsByEmail(user.getEmail())) {
+            throw new EmailAlreadyExistsException(EMAIL_ALREADY_EXISTS_MSG + user.getEmail());
+        }
+
+        User newUser = new User();
+        newUser.setFirstName(user.getFirstName());
+        newUser.setLastName(user.getLastName());
+        newUser.setUserName(user.getUserName());
+        newUser.setGender(user.getGender());
+        newUser.setEmail(user.getEmail());
+        newUser.setPassword(passwordEncoder.encode(user.getPassword()));
+
+        userRepository.save(newUser);
+
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(user.getUserName(), user.getPassword()));
+        return jwtUtil.generateToken(user.getUserName());
+    }
+
+    @Override
+    public String signIn(String identifier, String rawPassword) {
+        User user;
+
+        if (identifier.contains("@")) {
+            user = userRepository.findByEmail(identifier);
+            if (user == null) {
+                throw new UsernameNotFoundException("User not found with email: " + identifier);
+            }
+        } else {
+            user = userRepository.findByUserName(identifier);
+            if (user == null) {
+                throw new UsernameNotFoundException("User not found with username: " + identifier);
+            }
+        }
+
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(user.getUserName(), rawPassword));
+
+        return jwtUtil.generateToken(user.getUserName());
     }
 
     @Override

@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +27,13 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).body(users);
         }
         return ResponseEntity.ok(users);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserDTO> getCurrentUser(Authentication authentication) {
+        String username = authentication.getName(); // Extracted from SecurityContext via JWT
+        UserDTO userDTO = userService.findUserByUserName(username); // Custom method you'll create
+        return ResponseEntity.ok(userDTO);
     }
 
     @GetMapping("/{userId}")

@@ -3,6 +3,7 @@ package com.master.socialmedia.utils;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -13,12 +14,14 @@ import java.util.Map;
 @Component
 public class JwtUtil {
 
-    private static final String SECRET_KEY = "TaK+HaV^uvCHEFsEVfypW#7g9^k*Z8$V"; // 32-char secret key (256 bits)
+    @Value("${jwt.secret}")
+    private String secretKey;
 
-    private static final long JWT_EXPIRATION_IN_MS = 3600000L;
+    @Value("${jwt.expiration}")
+    private long jwtExpirationInMs;
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+        return Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
     public String extractUsername(String token) {
@@ -53,13 +56,17 @@ public class JwtUtil {
                 .claims(claims)
                 .subject(subject)
                 .issuedAt(new Date(now))
-                .expiration(new Date(now + JWT_EXPIRATION_IN_MS))
+                .expiration(new Date(now + jwtExpirationInMs))
                 .signWith(getSigningKey())
                 .compact();
     }
 
 
     public boolean validateToken(String token) {
-        return !isTokenExpired(token);
+        try {
+            return !isTokenExpired(token);
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

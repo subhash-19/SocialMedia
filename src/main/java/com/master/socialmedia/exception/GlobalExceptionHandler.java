@@ -38,10 +38,8 @@ public class GlobalExceptionHandler {
                 ));
 
         Map<String, Object> errorDetails = new HashMap<>();
-        errorDetails.put("timestamp", LocalDateTime.now());
         errorDetails.put("status", HttpStatus.BAD_REQUEST.value());
-        errorDetails.put("error", "Validation Failed");
-        errorDetails.put("message", "Input validation failed");
+        errorDetails.put("timestamp", LocalDateTime.now());
         errorDetails.put("errors", fieldErrors);
 
         return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);

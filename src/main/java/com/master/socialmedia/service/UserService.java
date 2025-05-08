@@ -9,7 +9,11 @@ public interface UserService {
 
     List<UserDTO> getAllUsers();
 
-    UserDTO registerUser(User user);
+    UserDTO findUserByUserName(String username);
+
+    String registerUser(User user);
+
+    String signIn(String identifier, String rawPassword);
 
     UserDTO findUserById(Integer userId);
 
