@@ -7,6 +7,7 @@ import com.master.socialmedia.enums.PostStatus;
 import com.master.socialmedia.service.PostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,16 +20,16 @@ public class PostController {
     private final PostService postService;
 
     @PostMapping("/create")
-    public ResponseEntity<PostDTO> createPost(@RequestBody Post post, @RequestParam Integer userId) {
-        return ResponseEntity.ok(postService.createPost(post, userId));
+    public ResponseEntity<PostDTO> createPost(@RequestBody Post post, Authentication authentication) {
+        return ResponseEntity.ok(postService.createPost(post, authentication));
     }
 
-    @GetMapping("/{postId}")
-    public ResponseEntity<PostDTO> getPostById(@PathVariable Integer postId) {
-        return ResponseEntity.ok(postService.getPostById(postId));
+    @GetMapping
+    public ResponseEntity<List<PostDTO>> getPostsOfCurrentUser(Authentication authentication) {
+        return ResponseEntity.ok(postService.getPostsByAuthenticatedUser(authentication));
     }
 
-    @GetMapping("/public")
+    @GetMapping("/public-post")
     public ResponseEntity<List<PostDTO>> getAllPublicPosts() {
         List<PostDTO> posts = postService.getAllPublicPosts();
         return ResponseEntity.ok(posts);
@@ -42,42 +43,51 @@ public class PostController {
     @PutMapping("/update/{postId}")
     public ResponseEntity<PostDTO> updatePost(@PathVariable Integer postId,
                                               @RequestBody Post updatedPost,
-                                              @RequestParam Integer userId) {
-        return ResponseEntity.ok(postService.updatePost(postId, updatedPost, userId));
+                                              Authentication authentication) {
+        return ResponseEntity.ok(postService.updatePost(postId, updatedPost, authentication));
     }
 
     @DeleteMapping("/delete/{postId}")
-    public ResponseEntity<Void> deletePost(@PathVariable Integer postId, @RequestParam Integer userId) {
-        postService.deletePost(postId, userId);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<String> deletePost(@PathVariable Integer postId,
+                                             Authentication authentication) {
+        postService.deletePost(postId, authentication);
+        return ResponseEntity.ok("Post deleted successfully.");
     }
 
-    @PutMapping("/toggle-like/{postId}")
-    public ResponseEntity<PostDTO> toggleLikePost(@PathVariable Integer postId, @RequestParam Integer userId) {
-        return ResponseEntity.ok(postService.toggleLikePost(postId, userId));
+    @PostMapping("/like/{postId}")
+    public ResponseEntity<PostDTO> toggleLikePost(@PathVariable Integer postId, Authentication authentication) {
+        PostDTO updatedPost = postService.toggleLikePost(postId, authentication);
+        return ResponseEntity.ok(updatedPost);
     }
 
-    @PutMapping("/save-toggle/{postId}")
-    public ResponseEntity<PostDTO> toggleSavePost(@PathVariable Integer postId, @RequestParam Integer userId) {
-        return ResponseEntity.ok(postService.savePost(postId, userId));
+
+    @PostMapping("/save/{postId}")
+    public ResponseEntity<PostDTO> savePost(@PathVariable Integer postId, Authentication authentication) {
+        PostDTO savedPost = postService.toggleSavePost(postId, authentication);
+        return ResponseEntity.ok(savedPost);
     }
+
 
     @PostMapping("/comment/{postId}")
     public ResponseEntity<PostDTO> addComment(@PathVariable Integer postId,
-                                              @RequestParam Integer userId,
-                                              @RequestParam String comment) {
-        return ResponseEntity.ok(postService.addComment(postId, userId, comment));
+                                              @RequestParam String commentText,
+                                              Authentication authentication) {
+        PostDTO updatedPost = postService.addComment(postId, commentText, authentication);
+        return ResponseEntity.ok(updatedPost);
     }
+
 
     @GetMapping("/comments/{postId}")
     public ResponseEntity<List<String>> getCommentTexts(@PathVariable Integer postId) {
         return ResponseEntity.ok(postService.getCommentTexts(postId));
     }
 
-    @GetMapping("/saved/{userId}")
-    public ResponseEntity<List<PostDTO>> getSavedPosts(@PathVariable Integer userId) {
-        return ResponseEntity.ok(postService.getSavedPosts(userId));
+    @GetMapping("/saved-posts")
+    public ResponseEntity<List<PostDTO>> getSavedPosts(Authentication authentication) {
+        List<PostDTO> savedPosts = postService.getSavedPosts(authentication);
+        return ResponseEntity.ok(savedPosts);
     }
+
 
     @GetMapping("/likes/count/{postId}")
     public ResponseEntity<Integer> getLikeCount(@PathVariable Integer postId) {

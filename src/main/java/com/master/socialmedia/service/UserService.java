@@ -2,6 +2,7 @@ package com.master.socialmedia.service;
 
 import com.master.socialmedia.dto.UserDTO;
 import com.master.socialmedia.entity.User;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
@@ -9,7 +10,7 @@ public interface UserService {
 
     List<UserDTO> getAllUsers();
 
-    UserDTO findUserByUserName(String username);
+    UserDTO findUserByUserName(Authentication authentication);
 
     String registerUser(User user);
 
@@ -19,9 +20,9 @@ public interface UserService {
 
     UserDTO findUserByEmail(String email);
 
-    UserDTO updateUser(User user, Integer userId);
+    UserDTO updateUser(User user, Authentication authentication);
 
-    UserDTO followUser(Integer userId1, Integer userId2);
+    UserDTO followUser(Authentication authentication, Integer userId2);
 
     List<UserDTO> searchUser(String query);
 

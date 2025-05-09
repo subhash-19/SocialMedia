@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -40,7 +41,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserDTO findUserByUserName(String username) {
+    public UserDTO findUserByUserName(Authentication authentication) {
+        String username = authentication.getName();
         User user = userRepository.findByUserName(username);
         if (user == null) {
             throw new UsernameNotFoundException("User not found with username: " + username);
@@ -117,33 +119,50 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserDTO followUser(Integer userId1, Integer userId2) {
-        if (userId1.equals(userId2)) {
+    public UserDTO followUser(Authentication authentication, Integer userIdToFollow) {
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new CustomAuthenticationException("Invalid or missing authentication");
+        }
+
+        String currentUsername = authentication.getName();
+        User currentUser = userRepository.findByUserName(currentUsername);
+        if (currentUser == null) {
+            throw new UserNotFoundException("Authenticated user not found.");
+        }
+
+        if (currentUser.getId().equals(userIdToFollow)) {
             throw new UserOperationException("User cannot follow themselves.");
         }
 
-        User user1 = userRepository.findById(userId1)
-                .orElseThrow(() -> new UserNotFoundException("User with ID " + userId1 + " not found"));
-        User user2 = userRepository.findById(userId2)
-                .orElseThrow(() -> new UserNotFoundException("User with ID " + userId2 + " not found"));
+        User userToFollow = userRepository.findById(userIdToFollow)
+                .orElseThrow(() -> new UserNotFoundException("User with ID " + userIdToFollow + " not found"));
 
         try {
-            user2.getFollowers().add(user1.getId());
-            user1.getFollowings().add(user2.getId());
+            userToFollow.getFollowers().add(currentUser.getId());
 
-            userRepository.save(user1);
-            userRepository.save(user2);
+            currentUser.getFollowings().add(userToFollow.getId());
 
-            return new UserDTO(user1);
+            userRepository.save(currentUser);
+            userRepository.save(userToFollow);
+
+            return new UserDTO(currentUser);
         } catch (Exception e) {
             throw new UserOperationException("Failed to follow user: " + e.getMessage());
         }
     }
 
     @Override
-    public UserDTO updateUser(User user, Integer userId) {
-        User existingUser = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_ID_MSG + userId));
+    public UserDTO updateUser(User user, Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new CustomAuthenticationException("Invalid or missing authentication");
+        }
+
+        String username = authentication.getName();
+        User existingUser = userRepository.findByUserName(username);
+        if (existingUser == null) {
+            throw new UserNotFoundException("User not found with username: " + username);
+        }
 
         try {
             if (user.getFirstName() != null) {
@@ -156,7 +175,7 @@ public class UserServiceImpl implements UserService {
 
             if (user.getEmail() != null && !user.getEmail().equals(existingUser.getEmail())) {
                 User userWithEmail = userRepository.findByEmail(user.getEmail());
-                if (userWithEmail != null && !userWithEmail.getId().equals(userId)) {
+                if (userWithEmail != null && !userWithEmail.getId().equals(existingUser.getId())) {
                     throw new EmailAlreadyExistsException(EMAIL_ALREADY_EXISTS_MSG + user.getEmail());
                 }
                 existingUser.setEmail(user.getEmail());

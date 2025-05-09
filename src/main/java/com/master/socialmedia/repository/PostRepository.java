@@ -1,6 +1,7 @@
 package com.master.socialmedia.repository;
 
 import com.master.socialmedia.entity.Post;
+import com.master.socialmedia.entity.User;
 import com.master.socialmedia.enums.PostStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -17,5 +18,9 @@ public interface PostRepository extends JpaRepository<Post, Integer> {
     List<Post> findByUser_IdAndStatusNot(Integer userId, PostStatus status);
 
     List<Post> findByUser_IdAndStatusIn(Integer userId, List<PostStatus> statuses);
+
+    List<Post> findByUserIdAndStatus(Integer userId, PostStatus status);
+
+    List<Post> findByUser(User user);
 }
 

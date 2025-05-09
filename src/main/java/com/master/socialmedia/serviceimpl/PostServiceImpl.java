@@ -5,17 +5,22 @@ import com.master.socialmedia.entity.Comment;
 import com.master.socialmedia.entity.Post;
 import com.master.socialmedia.entity.User;
 import com.master.socialmedia.enums.PostStatus;
-import com.master.socialmedia.exception.ResourceNotFoundException;
-import com.master.socialmedia.exception.UnauthorizedActionException;
+import com.master.socialmedia.exception.*;
 import com.master.socialmedia.repository.PostRepository;
 import com.master.socialmedia.repository.UserRepository;
 import com.master.socialmedia.service.PostService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -29,24 +34,60 @@ public class PostServiceImpl implements PostService {
     private final UserRepository userRepository;
 
     @Override
-    public PostDTO createPost(Post post, Integer userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + userId));
+    public PostDTO createPost(Post post, Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new CustomAuthenticationException("Invalid or missing authentication");
+        }
+
+        String currentUsername = authentication.getName();
+        User user = userRepository.findByUserName(currentUsername);
+
+        if (user == null) {
+            throw new UserNotFoundException("Authenticated user not found.");
+        }
+
+        if (post.getCaption() == null || post.getCaption().isBlank()) {
+            throw new UserOperationException("Post caption cannot be empty.");
+        }
 
         post.setUser(user);
-        post.setCreatedAt(LocalDateTime.now());
+        post.setCreatedAt(ZonedDateTime.now(ZoneOffset.UTC).toLocalDateTime());
         post.setStatus(PostStatus.PUBLIC);
+        post.setDeleted(false);
+        post.setReported(false);
+        post.setReportCount(0);
+
+        // Avoid overwriting likes, saves, and comments if they are not meant to be set initially
+        post.setLikedBy(new HashSet<>());
+        post.setSavedBy(new HashSet<>());
+        post.setComments(new ArrayList<>());
 
         Post savedPost = postRepository.save(post);
         return new PostDTO(savedPost);
     }
 
     @Override
-    public PostDTO getPostById(Integer postId) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
-        return new PostDTO(post);
+    public List<PostDTO> getPostsByAuthenticatedUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new CustomAuthenticationException("Invalid or missing authentication");
+        }
+
+        String currentUsername = authentication.getName();
+        User user = userRepository.findByUserName(currentUsername);
+
+        if (user == null) {
+            throw new UserNotFoundException("Authenticated user not found.");
+        }
+
+        List<Post> userPosts = postRepository.findByUser(user);
+
+        if (userPosts.isEmpty()) {
+            throw new ResourceNotFoundException("No posts found for user: " + currentUsername);
+        }
+
+        return userPosts.stream().map(PostDTO::new).toList();
     }
+
 
     @Override
     public List<PostDTO> getAllPublicPosts() {
@@ -56,51 +97,59 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public List<PostDTO> getPostsByUser(Integer userId) {
-        return postRepository.findByUser_Id(userId)
-                .stream().map(PostDTO::new).toList();
+        List<Post> userPosts = postRepository.findByUserIdAndStatus(userId, PostStatus.PUBLIC);
+        return userPosts.stream().map(PostDTO::new).toList();
     }
 
     @Override
-    public PostDTO updatePost(Integer postId, Post updatedPost, Integer userId) {
-        Post post = postRepository.findById(postId)
+    public PostDTO updatePost(Integer postId, Post updatedPost, Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new CustomAuthenticationException("Invalid or missing authentication");
+        }
+
+        String currentUsername = authentication.getName();
+        User currentUser = userRepository.findByUserName(currentUsername);
+        if (currentUser == null) {
+            throw new UserNotFoundException("Authenticated user not found.");
+        }
+
+        Post existingPost = postRepository.findById(postId)
                 .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
 
-        if (!post.getUser().getId().equals(userId)) {
+        if (!existingPost.getUser().getId().equals(currentUser.getId())) {
             throw new UnauthorizedActionException("You are not allowed to update this post");
         }
 
-        if (updatedPost.getCaption() != null) {
-            post.setCaption(updatedPost.getCaption());
-        }
+        // Update only the provided fields
+        Optional.ofNullable(updatedPost.getCaption()).ifPresent(existingPost::setCaption);
+        Optional.ofNullable(updatedPost.getImageUrl()).ifPresent(existingPost::setImageUrl);
+        Optional.ofNullable(updatedPost.getVideoUrl()).ifPresent(existingPost::setVideoUrl);
+        Optional.ofNullable(updatedPost.getStatus()).ifPresent(existingPost::setStatus);
+        Optional.ofNullable(updatedPost.getLocation()).ifPresent(existingPost::setLocation);
 
-        if (updatedPost.getImageUrl() != null) {
-            post.setImageUrl(updatedPost.getImageUrl());
-        }
+        existingPost.setUpdatedAt(LocalDateTime.now());
 
-        if (updatedPost.getVideoUrl() != null) {
-            post.setVideoUrl(updatedPost.getVideoUrl());
-        }
-
-        if (updatedPost.getStatus() != null) {
-            post.setStatus(updatedPost.getStatus());
-        }
-
-        if (updatedPost.getLocation() != null) {
-            post.setLocation(updatedPost.getLocation());
-        }
-
-        post.setUpdatedAt(LocalDateTime.now());
-
-        return new PostDTO(postRepository.save(post));
+        return new PostDTO(postRepository.save(existingPost));
     }
+
 
     @Override
     @Transactional
-    public void deletePost(Integer postId, Integer userId) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new ResourceNotFoundException("Post not found with ID: " + postId));
+    public void deletePost(Integer postId, Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new CustomAuthenticationException("Invalid or missing authentication");
+        }
 
-        if (!post.getUser().getId().equals(userId)) {
+        String currentUsername = authentication.getName();
+        User user = userRepository.findByUserName(currentUsername);
+        if (user == null) {
+            throw new UserNotFoundException("Authenticated user not found.");
+        }
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
+
+        if (!post.getUser().getId().equals(user.getId())) {
             throw new UnauthorizedActionException("You are not allowed to delete this post");
         }
 
@@ -109,46 +158,76 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public PostDTO toggleLikePost(Integer postId, Integer userId) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
+    public PostDTO toggleLikePost(Integer postId, Authentication authentication) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + userId));
-
-        if (post.getLikedBy().contains(user)) {
-            post.getLikedBy().remove(user);
-        } else {
-            post.getLikedBy().add(user);
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new CustomAuthenticationException("Invalid or missing authentication");
         }
 
-        return new PostDTO(postRepository.save(post));
+        String currentUsername = authentication.getName();
+        User currentUser = userRepository.findByUserName(currentUsername);
+        if (currentUser == null) {
+            throw new UserNotFoundException("Authenticated user not found.");
+        }
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found with ID: " + postId));
+
+        if (post.getLikedBy().contains(currentUser)) {
+            post.getLikedBy().remove(currentUser);
+        } else {
+            post.getLikedBy().add(currentUser);
+        }
+
+        Post savedPost = postRepository.save(post);
+        return new PostDTO(savedPost);
     }
 
     @Override
     @Transactional
-    public PostDTO savePost(Integer postId, Integer userId) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
+    public PostDTO toggleSavePost(Integer postId, Authentication authentication) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + userId));
-
-        if (post.getSavedBy().contains(user)) {
-            post.getSavedBy().remove(user);
-        } else {
-            post.getSavedBy().add(user);
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new CustomAuthenticationException("Invalid or missing authentication");
         }
 
-        return new PostDTO(postRepository.save(post));
-    }
+        String currentUsername = authentication.getName();
+        User currentUser = userRepository.findByUserName(currentUsername);
+        if (currentUser == null) {
+            throw new UserNotFoundException("Authenticated user not found.");
+        }
 
-    @Override
-    public PostDTO addComment(Integer postId, Integer userId, String commentText) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND + postId));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (post.getSavedBy().contains(currentUser)) {
+            post.getSavedBy().remove(currentUser);
+        } else {
+            post.getSavedBy().add(currentUser);
+        }
+
+        Post savedPost = postRepository.save(post);
+        return new PostDTO(savedPost);
+    }
+
+
+    @Override
+    @Transactional
+    public PostDTO addComment(Integer postId, String commentText, Authentication authentication) {
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new CustomAuthenticationException("Invalid or missing authentication");
+        }
+
+        String currentUsername = authentication.getName();
+        User user = userRepository.findByUserName(currentUsername);
+        if (user == null) {
+            throw new UserNotFoundException("Authenticated user not found.");
+        }
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found with ID: " + postId));
+
 
         Comment comment = new Comment();
         comment.setText(commentText);
@@ -157,8 +236,11 @@ public class PostServiceImpl implements PostService {
         comment.setUser(user);
 
         post.getComments().add(comment);
-        return new PostDTO(postRepository.save(post));
+        Post savedPost = postRepository.save(post);
+
+        return new PostDTO(savedPost);
     }
+
 
     @Override
     public List<String> getCommentTexts(Integer postId) {
@@ -170,15 +252,24 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public List<PostDTO> getSavedPosts(Integer userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + userId));
+    public List<PostDTO> getSavedPosts(Authentication authentication) {
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new CustomAuthenticationException("Invalid or missing authentication");
+        }
+
+        String currentUsername = authentication.getName();
+        User user = userRepository.findByUserName(currentUsername);
+        if (user == null) {
+            throw new UserNotFoundException("Authenticated user not found.");
+        }
 
         return postRepository.findAll().stream()
                 .filter(post -> post.getSavedBy().contains(user))
                 .map(PostDTO::new)
                 .toList();
     }
+
 
     @Override
     public int getLikeCount(Integer postId) {

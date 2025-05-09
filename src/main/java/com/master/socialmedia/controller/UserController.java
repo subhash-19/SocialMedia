@@ -31,8 +31,7 @@ public class UserController {
 
     @GetMapping("/me")
     public ResponseEntity<UserDTO> getCurrentUser(Authentication authentication) {
-        String username = authentication.getName(); // Extracted from SecurityContext via JWT
-        UserDTO userDTO = userService.findUserByUserName(username); // Custom method you'll create
+        UserDTO userDTO = userService.findUserByUserName(authentication);
         return ResponseEntity.ok(userDTO);
     }
 
@@ -46,9 +45,9 @@ public class UserController {
         return ResponseEntity.ok(userService.findUserByEmail(email));
     }
 
-    @PutMapping("/{userId}")
-    public ResponseEntity<UserDTO> updateUser(@PathVariable Integer userId, @RequestBody User user) {
-        return ResponseEntity.ok(userService.updateUser(user, userId));
+    @PutMapping
+    public ResponseEntity<UserDTO> updateUser(@RequestBody User user, Authentication authentication) {
+        return ResponseEntity.ok(userService.updateUser(user, authentication));
     }
 
     @DeleteMapping("/{userId}")
@@ -57,9 +56,9 @@ public class UserController {
         return ResponseEntity.ok("User deleted successfully");
     }
 
-    @PutMapping("/{userId1}/follow/{userId2}")
-    public ResponseEntity<UserDTO> followUser(@PathVariable Integer userId1, @PathVariable Integer userId2) {
-        return ResponseEntity.ok(userService.followUser(userId1, userId2));
+    @PutMapping("/follow/{userId2}")
+    public ResponseEntity<UserDTO> followUser(Authentication authentication, @PathVariable Integer userId2) {
+        return ResponseEntity.ok(userService.followUser(authentication, userId2));
     }
 
     @GetMapping("/search")

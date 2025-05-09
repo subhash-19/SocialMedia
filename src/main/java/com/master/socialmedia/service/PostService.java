@@ -4,32 +4,33 @@ import com.master.socialmedia.dto.PostDTO;
 import com.master.socialmedia.entity.Post;
 import com.master.socialmedia.entity.User;
 import com.master.socialmedia.enums.PostStatus;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
 public interface PostService {
 
-    PostDTO createPost(Post post, Integer userId);
+    PostDTO createPost(Post post, Authentication authentication);
 
-    PostDTO getPostById(Integer postId);
+    List<PostDTO> getPostsByAuthenticatedUser(Authentication authentication);
 
     List<PostDTO> getAllPublicPosts();
 
     List<PostDTO> getPostsByUser(Integer userId);
 
-    PostDTO updatePost(Integer postId, Post updatedPost, Integer userId);
+    PostDTO updatePost(Integer postId, Post updatedPost, Authentication authentication);
 
-    void deletePost(Integer postId, Integer userId); // soft delete
+    void deletePost(Integer postId, Authentication authentication);
 
-    PostDTO toggleLikePost(Integer postId, Integer userId);
+    PostDTO toggleLikePost(Integer postId, Authentication authentication);
 
-    PostDTO savePost(Integer postId, Integer userId);
+    PostDTO toggleSavePost(Integer postId, Authentication authentication);
 
-    PostDTO addComment(Integer postId, Integer userId, String commentText);
+    PostDTO addComment(Integer postId, String commentText, Authentication authentication);
 
     List<String> getCommentTexts(Integer postId); // for simple display
 
-    List<PostDTO> getSavedPosts(Integer userId);
+    List<PostDTO> getSavedPosts(Authentication authentication);
 
     int getLikeCount(Integer postId);
 
