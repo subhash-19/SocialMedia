@@ -10,6 +10,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,14 +28,9 @@ public class UserServiceImpl implements UserService {
     private static final String EMAIL_ALREADY_EXISTS_MSG = "Email already exists: ";
 
     private final JwtUtil jwtUtil;
-
     private final UserRepository userRepository;
-
     private final PasswordEncoder passwordEncoder;
-
     private final AuthenticationManager authenticationManager;
-
-    private final UserDetailsServiceImpl userDetailsService;
 
     @Override
     public List<UserDTO> getAllUsers() {
@@ -85,17 +81,21 @@ public class UserServiceImpl implements UserService {
         if (identifier.contains("@")) {
             user = userRepository.findByEmail(identifier);
             if (user == null) {
-                throw new UsernameNotFoundException("User not found with email: " + identifier);
+                throw new CustomAuthenticationException("User not found with email: " + identifier);
             }
         } else {
             user = userRepository.findByUserName(identifier);
             if (user == null) {
-                throw new UsernameNotFoundException("User not found with username: " + identifier);
+                throw new CustomAuthenticationException("User not found with username: " + identifier);
             }
         }
 
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(user.getUserName(), rawPassword));
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(user.getUserName(), rawPassword));
+        } catch (BadCredentialsException ex) {
+            throw new CustomAuthenticationException("Invalid username or password");
+        }
 
         return jwtUtil.generateToken(user.getUserName());
     }

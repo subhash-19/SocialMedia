@@ -10,12 +10,18 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final String TIMESTAMP = "timestamp";
+    private static final String STATUS = "status";
+    private static final String ERROR = "error";
+    private static final String MESSAGE = "message";
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException ex) {
@@ -38,9 +44,9 @@ public class GlobalExceptionHandler {
                 ));
 
         Map<String, Object> errorDetails = new HashMap<>();
-        errorDetails.put("status", HttpStatus.BAD_REQUEST.value());
-        errorDetails.put("timestamp", LocalDateTime.now());
-        errorDetails.put("errors", fieldErrors);
+        errorDetails.put(STATUS, HttpStatus.BAD_REQUEST.value());
+        errorDetails.put(TIMESTAMP, LocalDateTime.now());
+        errorDetails.put(ERROR, fieldErrors);
 
         return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
     }
@@ -48,6 +54,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UsernameNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleUsernameNotFound(UsernameNotFoundException ex) {
         return buildErrorResponse(HttpStatus.NOT_FOUND, "User Not Found", ex.getMessage());
+    }
+
+    @ExceptionHandler(CustomAuthenticationException.class)
+    public ResponseEntity<Object> handleAuthException(CustomAuthenticationException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put(TIMESTAMP, LocalDateTime.now());
+        body.put(STATUS, HttpStatus.UNAUTHORIZED.value());
+        body.put(ERROR, "Unauthorized");
+        body.put(MESSAGE, ex.getMessage());
+
+        return new ResponseEntity<>(body, HttpStatus.UNAUTHORIZED);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -113,10 +130,10 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<Map<String, Object>> buildErrorResponse(HttpStatus status, String error, String message) {
         Map<String, Object> errorDetails = new HashMap<>();
-        errorDetails.put("timestamp", LocalDateTime.now());
-        errorDetails.put("status", status.value());
-        errorDetails.put("error", error);
-        errorDetails.put("message", message);
+        errorDetails.put(TIMESTAMP, LocalDateTime.now());
+        errorDetails.put(STATUS, status.value());
+        errorDetails.put(ERROR, error);
+        errorDetails.put(MESSAGE, message);
         return new ResponseEntity<>(errorDetails, status);
     }
 }
